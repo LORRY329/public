@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import pylab
-from pyecharts import Line, Grid, Bar
+from pyecharts import Line, Bar
 plt.rcParams['font.sans-serif'] = ['SimHei']
 #参数设置
 Term=1
@@ -23,7 +23,6 @@ option_price=2.30*Term
 fund_last_price_df=pd.read_csv('C:/Users/Administrator/Desktop/fof_option/fund_last_price_df.csv',parse_dates=True,index_col=0)
 #定义计算实际期权购买值函数
 def option_money(Fixedassets_yield,fees1,fees2,fees3,fees4,required_yield):
-
     option_money=Fixedassets_yield-fees1-fees2-fees3-fees4-required_yield
     return option_money
 option_money(Fixedassets_yield,fees1,fees2,fees3,fees4,required_yield)
@@ -42,8 +41,6 @@ for i in range(252*Term,len(fund_last_price_df)):
     option_yield_pershare.append(np.max([0,fund_last_price_df.values[i]/fund_last_price_df.values[i-252*Term]-1]))
 option_yield_pershare=np.multiply(option_yield_pershare,100)
 option_yield=np.multiply(option_shares(option_money,option_price),option_yield_pershare)
-
-#all_yield=np.multiply(option_shares(option_money,option_price),option_yield)+required_yield
 all_yield=option_yield+required_yield
 annual_yield=100*pow((all_yield+100)/100,1/Term)-100
 annual_yield_df=pd.DataFrame(np.array(annual_yield).T,index=fund_last_price_df.index[0:len(fund_last_price_df)-252*Term])
@@ -151,7 +148,7 @@ predict_yield_up=[]
 for i in range(len(cum_std_up)):
     predict_yield_up.append(annual_yield_predict2_df.values[i]+cum_std_up[i])
 predict_yield_up_df=pd.DataFrame(predict_yield_up, index=fund_last_price_df.index[-252*Term-1:-1])
-
+#一倍波动率
 cum_std_down=[]
 for t in range(0,252*Term):
     cum_std_down.append(day_std*np.sqrt(t))
@@ -160,7 +157,7 @@ for i in range(len(cum_std_up)):
     predict_yield_down.append(annual_yield_predict2_df.values[i]-cum_std_down[i])
 predict_yield_down_df=pd.DataFrame(predict_yield_down, index=fund_last_price_df.index[-252*Term-1:-1])
 predict_yield_down_df[predict_yield_down_df<2]=2
-#一倍波动率
+#二倍波动率
 cum_std2_up=[]
 for t in range(0,252*Term):
     cum_std2_up.append(2*day_std*np.sqrt(t))
@@ -203,7 +200,7 @@ plt.gca().yaxis.set_major_formatter(FuncFormatter(to_percent))
 plt.title(u'FOF组合净值和期权收益图')
 plt.savefig('FOF&option yield')
 plt.show()
-
+#使用echarts画图
 dfvalue1=[round(i[0],4) for i in fund_last_price_df.values]
 dfvalue2=[round(i[0],4) for i in annual_yield_df.values]
 
@@ -219,11 +216,6 @@ attr=[2,4,6,8,10,12,14,16,18,20,22,24]
 v1=pb
 bar.add("收益率分布图", attr, v1,)
 
-grid = Grid()
-grid.add(bar, grid_bottom="60%")
-grid.add(line1, grid_top="60%")
-grid.render()
-
 bar=Bar("收益率分布图", height=720)
 attr=[2,4,6,8,10,12,14,16,18,20,22,24]
 v1=pb
@@ -234,70 +226,4 @@ line1=Line("fof净值图")
 line1.add("fof", _index, dfvalue1,is_label_show=True,is_more_utils=True, is_fill=True, area_color='#000',
          area_opacity=0.3, is_smooth=True,yaxis_force_interval=0.06,yaxis_interval=10, yaxis_max=1.25, yaxis_min=0.95)
 line1.render()
-#敏感性测试
-#设置留存收益和固定收益
-floor=[0,1,2,3,4,5]
-fix=[4,4.5,5,5.5,6,6.5]
-#定义参与率函数
-def participation(fix,floor,call=2.0):
-    participation=[]
-    for i in range(len(fix)):
-        for j in range(len(floor)):
-            participation.append((fix[i]-floor[j])/call)
-    return participation
-arr1=np.array(participation(fix,floor,call=2))
-arr2=arr1.reshape(len(fix),len(floor))
-arr2[arr2<0]=None
-arr2
-df_partici=pd.DataFrame(arr2*100)
-fig = plt.figure(figsize=(7,4))
-ax = fig.add_subplot(111, frameon=True, xticks=[], yticks=[])
-vals = np.around(df_partici.values,2)
-#绘制参与率表格
-the_table=plt.table(cellText=vals, rowLabels=fix, colLabels=floor, 
-                    colWidths = [0.1]*vals.shape[1], loc='center',cellLoc='center')
-the_table.set_fontsize(20)
-the_table.scale(2.5,2.58)
-plt.title('参与率(%)')
-#收益率最大值测算
-Term=1
-call=2.0
-option_yield_max=[]
-option_yield_mean=[]
-option_yield_pershare2=[]
-for i in range(len(arr1)):
-    for k in range(252*Term,len(fund_last_price_df)):
-        option_yield_pershare2.append(np.max([0,fund_last_price_df.values[k]/fund_last_price_df.values[k-252*Term]-1]))
-    option_yield_pershare3=np.multiply(option_yield_pershare2,100)
-    option_yield2=np.multiply(arr1[i],option_yield_pershare3)
-    option_yield_max.append(option_yield2.max())
-    option_yield_mean.append(option_yield2.mean())
-opmax1=np.array(option_yield_max) 
-opmax1=np.array(floor*6)+opmax1
-opmax2=opmax1.reshape(len(fix),len(floor))  
-annual_opmax=[100*pow((opmax2+100)/100,1/Term)-100 for opmax2 in opmax2]
-df_opmax=pd.DataFrame(annual_opmax)
-fig = plt.figure(figsize=(7,4))
-ax = fig.add_subplot(111, frameon=True, xticks=[], yticks=[])
-vals = np.around(df_opmax.values,4)
 
-the_table=plt.table(cellText=vals, rowLabels=fix, colLabels=floor, 
-                    colWidths = [0.1]*vals.shape[1], loc='center',cellLoc='center')
-the_table.set_fontsize(20)
-the_table.scale(2.5,2.58)
-plt.title('最大收益（%）')
-#收益率均值
-opmean1=np.array(option_yield_mean)   
-annual_opmean2=[100*pow((opmean1+100)/100,1/Term)-100 for opmean1 in opmean1]
-annual_opmean2=annual_opmean2+np.array(floor*6)
-annual_opmean2=annual_opmean2.reshape(len(fix),len(floor))
-#绘制最大收益表格
-df_opmean=pd.DataFrame(annual_opmean2)
-fig = plt.figure(figsize=(7,4))
-ax = fig.add_subplot(111, frameon=True, xticks=[], yticks=[])
-vals = np.around(df_opmean.values,4)
-the_table=plt.table(cellText=vals, rowLabels=fix, colLabels=floor, 
-                    colWidths = [0.1]*vals.shape[1], loc='center',cellLoc='center',)
-plt.title('平均收益（%）')
-the_table.set_fontsize(20)
-the_table.scale(2.5,2.58)
